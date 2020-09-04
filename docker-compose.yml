@@ -1,0 +1,9 @@
+# This docker-compose script builds our program from scratch, and also
+# runs the requisite postgres image.
+version: "3.5"
+
+services:
+  fibsrv:
+    build: .
+    ports:
+      - '8080:8080'
