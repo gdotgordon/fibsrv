@@ -32,8 +32,6 @@ func (ms *MapStore) Memoize(n int, val uint64) error {
 // FindLessEqual finds the highest n and value memoized value less
 // than or equal to the target
 func (ms *MapStore) FindLessEqual(target uint64) (int, uint64, error) {
-	ms.mu.Lock()
-
 	max := uint64(0)
 	n := 0
 	for k, v := range ms.tab {
@@ -45,7 +43,6 @@ func (ms *MapStore) FindLessEqual(target uint64) (int, uint64, error) {
 			n = k
 		}
 	}
-	ms.mu.Unlock()
 	return n, max, nil
 }
 
