@@ -8,7 +8,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -28,6 +27,11 @@ const (
 // StatusResponse is the JSON returned for status notifications.
 type StatusResponse struct {
 	Status string `json:"status"`
+}
+
+// ResultResponse is the JSON returned for status notifications.
+type ResultResponse struct {
+	Result uint64 `json:"result"`
 }
 
 // API is the item that dispatches to the endpoint implementations
@@ -84,7 +88,8 @@ func (a apiImpl) fib(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"result": %d}`, res)))
+	b, _ := json.MarshalIndent(ResultResponse{res}, "", "  ")
+	w.Write(b)
 }
 
 // Count number of memoized items less than target
@@ -96,22 +101,19 @@ func (a apiImpl) fibLess(w http.ResponseWriter, r *http.Request) {
 	ttxt := r.URL.Query().Get("target")
 	target, err := strconv.Atoi(ttxt)
 	if err != nil || target < 0 {
-		fmt.Println("******4")
 		a.writeErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
-	fmt.Println("******1", target)
-
 	resp, err := a.service.FibLess(r.Context(), uint64(target))
 	if err != nil {
 		a.writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	fmt.Println("******2", resp)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"result": %d}`, resp)))
+	b, _ := json.MarshalIndent(ResultResponse{uint64(resp)}, "", "  ")
+	w.Write(b)
 }
 
 func (a *apiImpl) clear(w http.ResponseWriter, r *http.Request) {

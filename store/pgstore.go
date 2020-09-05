@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/atomic"
 
 	// Load Postgres driver
 	_ "github.com/lib/pq"
@@ -35,16 +36,20 @@ type PostgresConfig struct {
 	DBName   string
 }
 
-// PostgresStore if the type implmenting the Store interface for Postgres.
+// PostgresStore if the type implementing the Store interface for Postgres.
 type PostgresStore struct {
 	db           *sqlx.DB
 	findStmt     *sqlx.Stmt
 	findLessStmt *sqlx.Stmt
 	storeStmt    *sqlx.Stmt
+	memoCnt      atomic.Int32
+	memoDupCnt   atomic.Int32
+	cacheHitCnt  atomic.Int32
+	cacheMissCnt atomic.Int32
 }
 
 // NewPostgres return a new Postgres store
-func NewPostgres(ctx context.Context, cfg PostgresConfig) (*PostgresStore, error) {
+func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
@@ -104,16 +109,27 @@ func (ps *PostgresStore) Memo(ctx context.Context, n int) (uint64, bool, error) 
 	}
 	if len(res) != 1 {
 		fmt.Println("memo not found", n)
+		ps.cacheMissCnt.Add(1)
 		return 0, false, nil
 	}
 	fmt.Println("memo", n, res[0])
+	ps.cacheHitCnt.Add(1)
 	return res[0], true, nil
 }
 
 // Memoize stores a memoized value
 func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
 	fmt.Println("memoize", n, val)
-	_, err := ps.storeStmt.ExecContext(ctx, n, val)
+	res, err := ps.storeStmt.ExecContext(ctx, n, val)
+	cnt, err := res.RowsAffected()
+	if err != nil {
+		panic("row count not supported in postgres")
+	}
+	if cnt == 0 {
+		ps.memoCnt.Add(1)
+	} else {
+		ps.memoDupCnt.Add(1)
+	}
 	return err
 }
 

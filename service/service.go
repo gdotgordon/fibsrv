@@ -60,7 +60,9 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 }
 
 // FibLess finds Fibonacci(N) such that the value is the highest one less
-// than the target value.
+// than the target value.  It starts with the highest intermediate value
+// in the database and then increments by 1 until it finds a value greater
+// than or equla to the target.
 func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 	if target == 0 {
 		return 0, nil
@@ -79,7 +81,6 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 			return fp.Num, nil
 		}
 		n = fp.Num
-		fmt.Println("intermediate:", fp)
 	} else {
 		n = 0
 	}
