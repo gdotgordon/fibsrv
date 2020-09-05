@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/gdotgordon/fibsrv/store"
 )
 
 func TestFibLess(t *testing.T) {
+	ctx := context.Background()
 	store := store.NewMap()
 	svc, err := NewFib(store)
 	if err != nil {
@@ -16,9 +19,13 @@ func TestFibLess(t *testing.T) {
 		target uint64
 		result int
 	}{
-		{target: 11, result: 4},
+		{target: 2, result: 3},
+		{target: 11, result: 7},
+		{target: 1, result: 1},
+		{target: 120, result: 12},
 	} {
-		res, err := svc.FibLess(v.target)
+		fmt.Println("fibless", v.target)
+		res, err := svc.FibLess(ctx, v.target)
 		if err != nil {
 			t.Fatal(err)
 		}

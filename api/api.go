@@ -76,7 +76,7 @@ func (a apiImpl) fib(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := a.service.Fib(n)
+	res, err := a.service.Fib(r.Context(), n)
 	if err != nil {
 		a.writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -102,7 +102,7 @@ func (a apiImpl) fibLess(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("******1", target)
 
-	resp, err := a.service.FibLess(uint64(target))
+	resp, err := a.service.FibLess(r.Context(), uint64(target))
 	if err != nil {
 		a.writeErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -115,7 +115,7 @@ func (a apiImpl) fibLess(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *apiImpl) clear(w http.ResponseWriter, r *http.Request) {
-	if err := a.service.Clear(); err != nil {
+	if err := a.service.Clear(r.Context()); err != nil {
 		a.writeErrorResponse(w, http.StatusInternalServerError, err)
 	}
 }

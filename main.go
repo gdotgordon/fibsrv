@@ -18,6 +18,14 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// PostgresPort is the default postgres port
+	PostgresPort = 5432
+
+	// PostgresHost is the host from docker-compose
+	PostgresHost = "db"
+)
+
 type cleanupTask func()
 
 var (
@@ -49,34 +57,35 @@ func main() {
 		os.Exit(1)
 	}
 
-	//memo := make(map[int]uint64)
-	//fmt.Println(fib(6, memo), memo)
-	//fmt.Println("fibless:", fibLess(3, memo))
-	_, err = store.NewPostgres(store.PostgresConfig{})
+	postgresUser := os.Getenv("POSTGRES_USER")
+	postgresPassword := os.Getenv("POSTGRES_PASSWORD")
+	postgresDB := os.Getenv("POSTGRES_DB")
+	if postgresUser == "" || postgresPassword == "" || postgresDB == "" {
+		fmt.Fprintf(os.Stderr,
+			"environment vars POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB must be set")
+		os.Exit(1)
+	}
+	dataStore, err := store.NewPostgres(ctx,
+		store.PostgresConfig{
+			Host:     PostgresHost,
+			Port:     PostgresPort,
+			User:     postgresUser,
+			Password: postgresPassword,
+			DBName:   postgresDB,
+		},
+	)
 	if err != nil {
 		fmt.Println("error opening store:", err)
 		//os.Exit(1)
 	}
-	ms := store.NewMap()
-	svc, err := service.NewFib(ms)
+	//ms := store.NewMap()
+	svc, err := service.NewFib(dataStore)
 	if err != nil {
-		fmt.Println("error creating service:", err)
+		fmt.Fprintln(os.Stderr, "error creating service:", err)
 		os.Exit(1)
 	}
-	val, err := svc.Fib(7)
-	if err != nil {
-		fmt.Println("error running fib:", err)
-		os.Exit(1)
-	}
-	fmt.Println(7, val)
-	num, err := svc.FibLess(21)
-	if err != nil {
-		fmt.Println("error running fibless:", err)
-		os.Exit(1)
-	}
-	fmt.Println("less", 21, num)
 
-	// Create the server to handle the IP verify service.  The API module will
+	// Create the server to handle the Fibonacci service.  The API module will
 	// set up the routes, as we don't need to know the details in the
 	// main program.
 	muxer := mux.NewRouter()

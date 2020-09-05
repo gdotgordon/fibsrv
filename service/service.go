@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gdotgordon/fibsrv/store"
@@ -8,9 +9,9 @@ import (
 
 // FibService defines the interface for the functions provided
 type FibService interface {
-	Fib(int) (uint64, error)
-	FibLess(uint64) (int, error)
-	Clear() error
+	Fib(context.Context, int) (uint64, error)
+	FibLess(context.Context, uint64) (int, error)
+	Clear(context.Context) error
 }
 
 // FibImpl implements the fib service
@@ -24,8 +25,8 @@ func NewFib(store store.Store) (FibService, error) {
 }
 
 // Fib gets the Fibonacci value for a number, returns an error if one occurs.
-func (fsi *FibImpl) Fib(n int) (uint64, error) {
-	val, ok, err := fsi.store.Memo(n)
+func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
+	val, ok, err := fsi.store.Memo(ctx, n)
 	if err != nil {
 		return 0, err
 	}
@@ -35,27 +36,24 @@ func (fsi *FibImpl) Fib(n int) (uint64, error) {
 	}
 	if n == 0 {
 		fmt.Println("0 case")
-		fsi.store.Memoize(0, 0)
+		fsi.store.Memoize(ctx, 0, 0)
 		return 0, nil
 	}
 	if n == 1 {
 		fmt.Println("1 case")
-		fsi.store.Memoize(1, 1)
+		fsi.store.Memoize(ctx, 1, 1)
 		return 1, nil
 	}
-	f1, err := fsi.Fib(n - 1)
+	f1, err := fsi.Fib(ctx, n-1)
 	if err != nil {
 		return 0, err
 	}
-	f2, err := fsi.Fib(n - 2)
+	f2, err := fsi.Fib(ctx, n-2)
 	if err != nil {
 		return 0, err
 	}
 	res := f1 + f2
-	if err := fsi.store.Memoize(n, res); err != nil {
-		return 0, err
-	}
-	if err := fsi.store.Memoize(n, res); err != nil {
+	if err := fsi.store.Memoize(ctx, n, res); err != nil {
 		return 0, err
 	}
 	return res, nil
@@ -63,22 +61,31 @@ func (fsi *FibImpl) Fib(n int) (uint64, error) {
 
 // FibLess finds Fibonacci(N) such that the value is the highest one less
 // than the target value.
-func (fsi *FibImpl) FibLess(target uint64) (int, error) {
+func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 	if target == 0 {
 		return 0, nil
 	}
+	if target == 1 {
+		return 1, nil
+	}
 
-	n, val, err := fsi.store.FindLessEqual(target)
+	fp, err := fsi.store.FindLessEqual(ctx, target)
+	var n int
 	if err != nil {
 		return 0, err
 	}
-	if val == target {
-		return n, nil
+	if fp != nil {
+		if fp.Value == target {
+			return fp.Num, nil
+		}
+		n = fp.Num
+		fmt.Println("intermediate:", fp)
+	} else {
+		n = 0
 	}
 
-	fmt.Println("intermediate:", n, val)
 	for {
-		res, err := fsi.Fib(n + 1)
+		res, err := fsi.Fib(ctx, n+1)
 		if err != nil {
 			return 0, err
 		}
@@ -90,6 +97,6 @@ func (fsi *FibImpl) FibLess(target uint64) (int, error) {
 }
 
 // Clear clears all rows of the store.
-func (fsi *FibImpl) Clear() error {
-	return fsi.store.Clear()
+func (fsi *FibImpl) Clear(ctx context.Context) error {
+	return fsi.store.Clear(ctx)
 }
