@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gdotgordon/fibsrv/store"
 )
@@ -11,6 +10,7 @@ import (
 type FibService interface {
 	Fib(context.Context, int) (uint64, error)
 	FibLess(context.Context, uint64) (int, error)
+	MemoCount(context.Context, uint64) (int, error)
 	Clear(context.Context) error
 }
 
@@ -31,17 +31,24 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 		return 0, err
 	}
 	if ok {
-		fmt.Println("hit:", n, val)
+		//fmt.Println("hit:", n, val)
 		return val, nil
 	}
 	if n == 0 {
-		fmt.Println("0 case")
-		fsi.store.Memoize(ctx, 0, 0)
+		//fmt.Println("0 case")
+		if err = fsi.store.Memoize(ctx, 0, 0); err != nil {
+			return 0, err
+		}
 		return 0, nil
 	}
 	if n == 1 {
-		fmt.Println("1 case")
-		fsi.store.Memoize(ctx, 1, 1)
+		//fmt.Println("1 case")
+		if err = fsi.store.Memoize(ctx, 0, 0); err != nil {
+			return 0, err
+		}
+		if err = fsi.store.Memoize(ctx, 1, 1); err != nil {
+			return 0, err
+		}
 		return 1, nil
 	}
 	f1, err := fsi.Fib(ctx, n-1)
@@ -95,6 +102,16 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 		}
 		n++
 	}
+}
+
+// MemoCount counts the number of memoizations less than or equal to
+// the target.
+func (fsi *FibImpl) MemoCount(ctx context.Context, target uint64) (int, error) {
+	res, err := fsi.store.MemoCount(ctx, target)
+	if err != nil {
+		return 0, err
+	}
+	return res, nil
 }
 
 // Clear clears all rows of the store.

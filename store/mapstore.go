@@ -49,6 +49,12 @@ func (ms *MapStore) FindLessEqual(ctx context.Context, target uint64) (*FibPair,
 	return &FibPair{n, max}, nil
 }
 
+// MemoCount returns the number of memoizations whose value is less than or
+// equal to the target.
+func (ms *MapStore) MemoCount(context.Context, uint64) (int, error) {
+	return len(ms.tab), nil
+}
+
 // Clear clears the map
 func (ms *MapStore) Clear(ctx context.Context) error {
 	ms.mu.Lock()

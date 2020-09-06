@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -21,6 +22,8 @@ const (
 	findMemo = `SELECT value FROM fibtab WHERE num = $1;`
 
 	findLess = `SELECT num, value FROM fibtab WHERE value <= $1 ORDER BY VALUE DESC LIMIT 1;`
+
+	memoCount = `SELECT count(*) as count FROM fibtab WHERE value <= $1;`
 
 	store = `INSERT INTO fibtab (num, value) VALUES ($1, $2)
 	    ON CONFLICT (num) DO NOTHING;`
@@ -42,6 +45,7 @@ type PostgresStore struct {
 	findStmt     *sqlx.Stmt
 	findLessStmt *sqlx.Stmt
 	storeStmt    *sqlx.Stmt
+	memoStmt     *sqlx.Stmt
 	memoCnt      atomic.Int32
 	memoDupCnt   atomic.Int32
 	cacheHitCnt  atomic.Int32
@@ -90,36 +94,42 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 		return nil, err
 	}
 
+	mcnt, err := db.PreparexContext(ctx, memoCount)
+	if err != nil {
+		return nil, err
+	}
+
 	ps := &PostgresStore{
 		db:           db,
 		findStmt:     find,
 		findLessStmt: findLess,
 		storeStmt:    store,
+		memoStmt:     mcnt,
 	}
 	return ps, nil
 }
 
 // Memo gets a memoized fibonacci value
 func (ps *PostgresStore) Memo(ctx context.Context, n int) (uint64, bool, error) {
-	fmt.Println("get memo", n)
-	var res []uint64
-	err := ps.findStmt.SelectContext(ctx, &res, n)
+	//fmt.Println("get memo", n)
+	var res uint64
+	row := ps.findStmt.QueryRowContext(ctx, n)
+	err := row.Scan(&res)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			ps.cacheMissCnt.Add(1)
+			return 0, false, nil
+		}
 		return 0, false, err
+
 	}
-	if len(res) != 1 {
-		fmt.Println("memo not found", n)
-		ps.cacheMissCnt.Add(1)
-		return 0, false, nil
-	}
-	fmt.Println("memo", n, res[0])
 	ps.cacheHitCnt.Add(1)
-	return res[0], true, nil
+	return res, true, nil
 }
 
 // Memoize stores a memoized value
 func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
-	fmt.Println("memoize", n, val)
+	//fmt.Println("memoize", n, val)
 	res, err := ps.storeStmt.ExecContext(ctx, n, val)
 	cnt, err := res.RowsAffected()
 	if err != nil {
@@ -136,17 +146,31 @@ func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
 // FindLessEqual finds the highest n and value memoized value less
 // than or equal to the target
 func (ps *PostgresStore) FindLessEqual(ctx context.Context, target uint64) (*FibPair, error) {
-	var fp []FibPair
-	err := ps.findLessStmt.SelectContext(ctx, &fp, target)
+	var fp FibPair
+	row := ps.findLessStmt.QueryRowContext(ctx, target)
+	err := row.Scan(&fp.Num, &fp.Value)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	if len(fp) != 1 {
-		fmt.Println("******le nothing found!!!!")
-		return nil, nil
+	return &fp, nil
+}
+
+// MemoCount returns the number of memoizations whose value is less than or
+// equal to the target.
+func (ps *PostgresStore) MemoCount(ctx context.Context, target uint64) (int, error) {
+	var res int
+	row := ps.memoStmt.QueryRowContext(ctx, target)
+	err := row.Scan(&res)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
 	}
-	fmt.Println("******le got", &fp[0])
-	return &fp[0], nil
+	return res, nil
 }
 
 // Clear clears the table

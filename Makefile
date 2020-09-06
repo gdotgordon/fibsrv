@@ -6,5 +6,5 @@ composeup:
 composedown:
 	docker-compose down --volumes --rmi all
 
-composedown_norm:
-	docker-compose down --volumes
+integration:
+	go test ./... -tags=integration -v -count=1

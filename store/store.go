@@ -13,5 +13,6 @@ type Store interface {
 	Memo(context.Context, int) (uint64, bool, error)
 	Memoize(context.Context, int, uint64) error
 	FindLessEqual(context.Context, uint64) (*FibPair, error)
+	MemoCount(context.Context, uint64) (int, error)
 	Clear(context.Context) error
 }
