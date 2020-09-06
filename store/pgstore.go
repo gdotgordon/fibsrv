@@ -1,8 +1,12 @@
 package store
 
+// This is the implmentaton of the Postgres store.
+
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,6 +24,8 @@ const (
 	num INTEGER PRIMARY KEY,
 	value BIGINT
 	);`
+
+	// The main queries are prepared at initialization time for efficiency.
 
 	// query to select a memo by fibonacci number
 	findMemo = `SELECT value FROM fibtab WHERE num = $1;`
@@ -70,7 +76,6 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig, log *zap.SugaredLogger
 		}
 		if i == 10 {
 			log.Debugw("Establishing DB connection", "status", "reached max connection attempts")
-			fmt.Println("too many errors")
 			return nil, err
 		}
 	}
@@ -153,6 +158,25 @@ func (ps *PostgresStore) Clear(ctx context.Context) error {
 
 // Shutdown shuts down the store
 func (ps *PostgresStore) Shutdown() error {
-	return ps.db.Close()
-
+	var buf bytes.Buffer
+	err1 := ps.findStmt.Close()
+	if err1 != nil {
+		buf.WriteString(err1.Error() + "\n")
+	}
+	err2 := ps.storeStmt.Close()
+	if err2 != nil {
+		buf.WriteString(err2.Error() + "\n")
+	}
+	err3 := ps.memoStmt.Close()
+	if err3 != nil {
+		buf.WriteString(err3.Error() + "\n")
+	}
+	err4 := ps.db.Close()
+	if err4 != nil {
+		buf.WriteString(err4.Error() + "\n")
+	}
+	if buf.Len() != 0 {
+		return errors.New(buf.String())
+	}
+	return nil
 }

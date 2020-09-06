@@ -1,6 +1,7 @@
-// Package main is the starting point for the HTTP server.  It creates
-// the api, store and service artifacts and then launches the server.
-// It supports signal handlers for a clean shutdown.
+// Package main is the starting point for the HTTP server for the
+// fibonacci service  It creates the api, store and service artifacts
+// and then launches the server.  It supports signal handlers for a
+// clean shutdown.
 package main
 
 import (
@@ -29,7 +30,7 @@ const (
 	PostgresHost = "db"
 )
 
-type cleanupTask func()
+type cleanupTask func() error
 
 var (
 	portNum  int    // listen port
@@ -116,7 +117,8 @@ func main() {
 	}()
 
 	// Block until we shutdown.
-	waitForShutdown(ctx, srv, log)
+	srvShut := dataStore.(*store.PostgresStore).Shutdown
+	waitForShutdown(ctx, srv, log, srvShut)
 }
 
 // Set up the logger, condsidering any env vars.
@@ -153,7 +155,9 @@ func waitForShutdown(ctx context.Context, srv *http.Server,
 	sig := <-interruptChan
 	log.Debugw("Termination signal received", "signal", sig)
 	for _, t := range tasks {
-		t()
+		if err := t(); err != nil {
+			log.Infof("Shutdown error", "error", err.Error())
+		}
 	}
 
 	// Create a deadline to wait for.
@@ -161,5 +165,5 @@ func waitForShutdown(ctx context.Context, srv *http.Server,
 	defer cancel()
 	srv.Shutdown(ctx)
 
-	log.Infof("Shutting down")
+	log.Infof("Server shutting down")
 }
