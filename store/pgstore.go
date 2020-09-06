@@ -7,24 +7,31 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"go.uber.org/atomic"
 
 	// Load Postgres driver
 	_ "github.com/lib/pq"
 )
 
 const (
+	// the table has the "n" of fib(n) as the primary key, and the value
+	// of fib(n) stored as a big integer.
 	createTable = `CREATE TABLE IF NOT EXISTS fibtab (
 	num INTEGER PRIMARY KEY,
 	value BIGINT
 	);`
 
+	// query to select a memo by fibonacci number
 	findMemo = `SELECT value FROM fibtab WHERE num = $1;`
 
+	// finds the highest memoized number and value where the value is
+	// less than the target.
 	findLess = `SELECT num, value FROM fibtab WHERE value <= $1 ORDER BY VALUE DESC LIMIT 1;`
 
+	// count the number of mempoized artifacts where the value is less than
+	// or equal to the target.
 	memoCount = `SELECT count(*) as count FROM fibtab WHERE value <= $1;`
 
+	// store a memo (ignore a duplicate update)
 	store = `INSERT INTO fibtab (num, value) VALUES ($1, $2)
 	    ON CONFLICT (num) DO NOTHING;`
 )
@@ -46,10 +53,6 @@ type PostgresStore struct {
 	findLessStmt *sqlx.Stmt
 	storeStmt    *sqlx.Stmt
 	memoStmt     *sqlx.Stmt
-	memoCnt      atomic.Int32
-	memoDupCnt   atomic.Int32
-	cacheHitCnt  atomic.Int32
-	cacheMissCnt atomic.Int32
 }
 
 // NewPostgres return a new Postgres store
@@ -58,13 +61,11 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 		"password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
 
-	fmt.Println("****connecting to db!", psqlInfo)
 	var db *sqlx.DB
 	var err error
 	for i := 0; i < 10; i++ {
 		db, err = sqlx.ConnectContext(ctx, "postgres", psqlInfo)
 		if err != nil {
-			fmt.Println("****got err!", err)
 			time.Sleep(1 * time.Second)
 		}
 		if i == 10 {
@@ -74,11 +75,13 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 	}
 	fmt.Println("****connected to db!")
 
+	// Create the table if it doesn't exist.
 	_, err = db.ExecContext(ctx, createTable)
 	if err != nil {
 		return nil, err
 	}
 
+	// Prepare the other statements for better performance.
 	find, err := db.PreparexContext(ctx, findMemo)
 	if err != nil {
 		return nil, err
@@ -109,37 +112,25 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 	return ps, nil
 }
 
-// Memo gets a memoized fibonacci value
+// Memo gets a memoized fibonacci value.  Returns false for the second
+// parameter if not yet cached.
 func (ps *PostgresStore) Memo(ctx context.Context, n int) (uint64, bool, error) {
-	//fmt.Println("get memo", n)
 	var res uint64
 	row := ps.findStmt.QueryRowContext(ctx, n)
 	err := row.Scan(&res)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ps.cacheMissCnt.Add(1)
 			return 0, false, nil
 		}
 		return 0, false, err
-
 	}
-	ps.cacheHitCnt.Add(1)
 	return res, true, nil
 }
 
 // Memoize stores a memoized value
 func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
 	//fmt.Println("memoize", n, val)
-	res, err := ps.storeStmt.ExecContext(ctx, n, val)
-	cnt, err := res.RowsAffected()
-	if err != nil {
-		panic("row count not supported in postgres")
-	}
-	if cnt == 0 {
-		ps.memoCnt.Add(1)
-	} else {
-		ps.memoDupCnt.Add(1)
-	}
+	_, err := ps.storeStmt.ExecContext(ctx, n, val)
 	return err
 }
 

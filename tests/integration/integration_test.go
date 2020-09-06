@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gdotgordon/fibsrv/api"
 )
@@ -24,6 +25,21 @@ var (
 
 func TestMain(m *testing.M) {
 	fibClient = http.DefaultClient
+
+	// Make sure we can reach the server.
+	connected := false
+	for i := 0; i < 10; i++ {
+		if err := invokeClear(); err != nil {
+			time.Sleep(1 * time.Second)
+		} else {
+			connected = true
+			break
+		}
+	}
+	if !connected {
+		fmt.Println("cannot connect to server")
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
@@ -45,12 +61,7 @@ func TestFib(t *testing.T) {
 		{n: 20, result: 6765},
 		{n: 8, result: 21},
 	} {
-		fmt.Println("fib", v.n)
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s?n=%d", fibAddr, "fib", v.n), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resp, err := fibClient.Do(req)
+		resp, err := http.Get(fmt.Sprintf("%s%s?n=%d", fibAddr, "fib", v.n))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -91,12 +102,7 @@ func TestFibLessDB(t *testing.T) {
 		{target: 120, result: 12},
 		{target: 58, result: 11},
 	} {
-		fmt.Println("fibless", v.target)
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s?target=%d", fibAddr, "fibless", v.target), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resp, err := fibClient.Do(req)
+		resp, err := http.Get(fmt.Sprintf("%s%s?target=%d", fibAddr, "fibless", v.target))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -121,12 +127,7 @@ func TestFibLessDB(t *testing.T) {
 }
 
 func invokeClear() error {
-	req, err := http.NewRequest(http.MethodGet, fibAddr+"clear", nil)
-	if err != nil {
-		return err
-	}
-
-	resp, err := fibClient.Do(req)
+	resp, err := http.Get(fibAddr + "clear")
 	if err != nil {
 		return err
 	}

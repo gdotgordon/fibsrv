@@ -1,3 +1,6 @@
+// Package main is the starting point for the HTTP server.  It creates
+// the api, store and service artifacts and then launches the server.
+// It supports signal handlers for a clean shutdown.
 package main
 
 import (
@@ -143,7 +146,7 @@ func initLogging() (*zap.SugaredLogger, error) {
 func waitForShutdown(ctx context.Context, srv *http.Server,
 	log *zap.SugaredLogger, tasks ...cleanupTask) {
 	interruptChan := make(chan os.Signal, 1)
-	signal.Notify(interruptChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(interruptChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Block until we receive our signal.
 	sig := <-interruptChan
@@ -158,50 +161,4 @@ func waitForShutdown(ctx context.Context, srv *http.Server,
 	srv.Shutdown(ctx)
 
 	log.Infof("Shutting down")
-}
-
-func fib(n int, memo map[int]uint64) uint64 {
-	v, ok := memo[n]
-	if ok {
-		fmt.Println("hit:", n, memo[n])
-		return v
-	}
-	if n == 0 {
-		fmt.Println("0 case")
-		memo[0] = 0
-		return 0
-	}
-	if n == 1 {
-		fmt.Println("1 case")
-		memo[1] = 1
-		return 1
-	}
-	res := fib(n-1, memo) + fib(n-2, memo)
-	memo[n] = res
-	return res
-}
-
-func fibLess(target uint64, memo map[int]uint64) int {
-	if target == 0 {
-		return 0
-	}
-	max := uint64(0)
-	n := 0
-
-	for k, v := range memo {
-		if v > max && v <= target {
-			if v == target {
-				return k
-			}
-			max = v
-			n = k
-		}
-	}
-	fmt.Println("intermediate:", n, max)
-	for {
-		if fib(n+1, memo) >= target {
-			return n + 1
-		}
-		n++
-	}
 }

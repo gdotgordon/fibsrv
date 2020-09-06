@@ -19,7 +19,6 @@ require (
 	github.com/opencontainers/runc v0.1.1 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/sirupsen/logrus v1.6.0 // indirect
-	go.uber.org/atomic v1.6.0
 	go.uber.org/zap v1.16.0
 	google.golang.org/appengine v1.6.6 // indirect
 	gotest.tools v2.2.0+incompatible // indirect

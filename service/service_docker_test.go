@@ -1,6 +1,3 @@
-// +build dockertest
-
-// Run as: go test -tags=dockertest
 package service
 
 import (
@@ -106,8 +103,8 @@ func TestFibLessDB(t *testing.T) {
 		{target: 2, result: 3},
 		{target: 11, result: 7},
 		{target: 120, result: 12},
+		{target: 11, result: 7},
 	} {
-		fmt.Println("fibless", v.target)
 		res, err := svc.FibLess(ctx, v.target)
 		if err != nil {
 			t.Fatal(err)
@@ -144,7 +141,6 @@ func TestFibDB(t *testing.T) {
 		{n: 20, result: 6765},
 		{n: 8, result: 21},
 	} {
-		fmt.Println("fibless", v.n)
 		res, err := svc.Fib(ctx, v.n)
 		if err != nil {
 			t.Fatal(err)
@@ -220,4 +216,54 @@ func BenchmarkFibonacciNoClearCache(b *testing.B) {
 			}
 		}
 	}
+}
+
+func BenchmarkFibonacciNoCache(b *testing.B) {
+	b.ReportAllocs()
+
+	ctx := context.Background()
+	svc, err := NewFib(&NeverStore{vals: make(map[int]uint64)})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	err = svc.Clear(context.Background())
+	if err != nil {
+		b.Fatalf("clear: %v", err)
+	}
+	cnt := 15
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < cnt; i++ {
+			f, err := svc.Fib(ctx, i)
+			if err != nil {
+				b.Fatalf("fib(%d): %v", i, err)
+			}
+
+			svc.MemoCount(ctx, f)
+		}
+	}
+}
+
+// NeverStore is a store that defeats all caching, and is used
+// for benchmarking.
+type NeverStore struct {
+	vals map[int]uint64
+}
+
+func (ns NeverStore) Memo(context.Context, int) (uint64, bool, error) {
+	return 0, false, nil
+}
+func (ns NeverStore) Memoize(ctx context.Context, n int, value uint64) error {
+	ns.vals[n] = value
+	return nil
+}
+func (ns NeverStore) FindLessEqual(context.Context, uint64) (*store.FibPair, error) {
+	return nil, nil
+}
+func (ns NeverStore) MemoCount(context.Context, uint64) (int, error) {
+	return len(ns.vals), nil
+}
+func (ns NeverStore) Clear(context.Context) error {
+	ns.vals = make(map[int]uint64)
+	return nil
 }

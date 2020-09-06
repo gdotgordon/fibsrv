@@ -1,16 +1,32 @@
+// Package service defines the "business" logic, backed by
+// a Store from the store package to manage the data.
+// There only current implmentation is the FibService.
+//
+// The service package API's are invoked from the api package,
+// which are the HTTP handler functions.
 package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gdotgordon/fibsrv/store"
 )
 
-// FibService defines the interface for the functions provided
+// FibService defines the interface for the functions
 type FibService interface {
+	// Fib Finds fibonacci(n)
 	Fib(context.Context, int) (uint64, error)
+
+	// FibLess find the number of memoized values
+	// less than the target value
 	FibLess(context.Context, uint64) (int, error)
+
+	// MemoCount counts the number of memoized values
+	// less than or equal to a target
 	MemoCount(context.Context, uint64) (int, error)
+
+	// Clear emties all data from the store.
 	Clear(context.Context) error
 }
 
@@ -72,9 +88,19 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 // than or equla to the target.
 func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 	if target == 0 {
+		cnt, err := fsi.MemoCount(ctx, target)
+		if err != nil {
+			return 0, err
+		}
+		fmt.Println("***0 case", cnt)
 		return 0, nil
 	}
 	if target == 1 {
+		cnt, err := fsi.MemoCount(ctx, target)
+		if err != nil {
+			return 0, err
+		}
+		fmt.Println("***1 case", cnt)
 		return 1, nil
 	}
 
@@ -85,6 +111,11 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 	}
 	if fp != nil {
 		if fp.Value == target {
+			cnt, err := fsi.MemoCount(ctx, target)
+			if err != nil {
+				return 0, err
+			}
+			fmt.Println("****alert: memcnt:", cnt, "returning:", fp.Num)
 			return fp.Num, nil
 		}
 		n = fp.Num
@@ -98,6 +129,11 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 			return 0, err
 		}
 		if res >= target {
+			cnt, err := fsi.MemoCount(ctx, target)
+			if err != nil {
+				return 0, err
+			}
+			fmt.Println("****alert: memcnt:", cnt, "returning:", n+1)
 			return n + 1, nil
 		}
 		n++

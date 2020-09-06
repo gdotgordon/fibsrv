@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/gdotgordon/fibsrv/store"
@@ -24,7 +23,6 @@ func TestFibLess(t *testing.T) {
 		{target: 1, result: 1},
 		{target: 120, result: 12},
 	} {
-		fmt.Println("fibless", v.target)
 		res, err := svc.FibLess(ctx, v.target)
 		if err != nil {
 			t.Fatal(err)
@@ -51,7 +49,6 @@ func TestMemoCount(t *testing.T) {
 		{target: 1, result: 1},
 		{target: 120, result: 12},
 	} {
-		fmt.Println("fibless", v.target)
 		if err := svc.Clear(ctx); err != nil {
 			t.Fatal(err)
 		}
