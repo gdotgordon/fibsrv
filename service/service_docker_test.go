@@ -11,6 +11,7 @@ import (
 	"github.com/gdotgordon/fibsrv/store"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
+	"go.uber.org/zap"
 )
 
 var (
@@ -66,6 +67,7 @@ func TestMain(m *testing.M) {
 				Password: password,
 				DBName:   db,
 			},
+			newDebugLogger(),
 		)
 		return err
 	}); err != nil {
@@ -104,6 +106,7 @@ func TestFibLessDB(t *testing.T) {
 		{target: 11, result: 7},
 		{target: 120, result: 12},
 		{target: 11, result: 7},
+		{target: 54, result: 10},
 	} {
 		res, err := svc.FibLess(ctx, v.target)
 		if err != nil {
@@ -146,14 +149,21 @@ func TestFibDB(t *testing.T) {
 			t.Fatal(err)
 		}
 		if res != v.result {
-			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.n, v.result, res)
+			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.result, v.n, res)
 		}
 
 		cnt, err := svc.MemoCount(ctx, v.result)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cnt != v.n+1 {
+
+		if i == 2 {
+			// The sequence starts: 0, 1, 1.  Therefore there is only one
+			// memo less than 2 even though there are two previous memos.
+			// So add one here for this special case.
+			cnt++
+		}
+		if cnt != v.n {
 			t.Fatalf("%d: expected %d memos, got %d", i, v.n, cnt)
 		}
 	}
@@ -183,7 +193,12 @@ func BenchmarkFibonacciClearCache(b *testing.B) {
 			if err != nil {
 				b.Fatalf("les(%d): %v", num, err)
 			}
-			if num != i+1 {
+
+			// Quirk of repeated 1's in Fibonacci sequence.
+			if i == 2 {
+				num++
+			}
+			if num != i {
 				b.Fatalf("expcted %d memos, got %d, %d result", i, num, f)
 			}
 		}
@@ -238,7 +253,7 @@ func BenchmarkFibonacciNoCache(b *testing.B) {
 			if err != nil {
 				b.Fatalf("fib(%d): %v", i, err)
 			}
-
+			// No memos being stored, ignore.
 			svc.MemoCount(ctx, f)
 		}
 	}
@@ -257,7 +272,7 @@ func (ns NeverStore) Memoize(ctx context.Context, n int, value uint64) error {
 	ns.vals[n] = value
 	return nil
 }
-func (ns NeverStore) FindLessEqual(context.Context, uint64) (*store.FibPair, error) {
+func (ns NeverStore) FindLess(context.Context, uint64) (*store.FibPair, error) {
 	return nil, nil
 }
 func (ns NeverStore) MemoCount(context.Context, uint64) (int, error) {
@@ -266,4 +281,17 @@ func (ns NeverStore) MemoCount(context.Context, uint64) (int, error) {
 func (ns NeverStore) Clear(context.Context) error {
 	ns.vals = make(map[int]uint64)
 	return nil
+}
+
+func newDebugLogger() *zap.SugaredLogger {
+	config := zap.NewProductionConfig()
+	lg, _ := config.Build()
+	return lg.Sugar()
+}
+
+func newNoopLogger() *zap.SugaredLogger {
+	config := zap.NewProductionConfig()
+	config.OutputPaths = []string{"/dev/null"}
+	lg, _ := config.Build()
+	return lg.Sugar()
 }

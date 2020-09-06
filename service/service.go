@@ -8,7 +8,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gdotgordon/fibsrv/store"
 )
@@ -82,47 +81,39 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 	return res, nil
 }
 
-// FibLess finds Fibonacci(N) such that the value is the highest one less
-// than the target value.  It starts with the highest intermediate value
-// in the database and then increments by 1 until it finds a value greater
-// than or equla to the target.
+// FibLess finds the number of intermediate results such that their fib(n)
+// is less than the target value.  It starts with the highest intermediate
+// value in the database and then increments by 1 until it finds a value
+// greater than or equal to the target.  At that point it goes back and fetches
+// the number of memos less than the target value.
+//
+// In other words, we need to create any missing memos to get to the point
+// that the repository has all the missing intermidate results.
+//
+// The logic depends on the fact that any memos populated to the db are
+// done correctly, i.e. the complete sequence is recorded.  This will
+// always be the case.
 func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
-	if target == 0 {
-		cnt, err := fsi.MemoCount(ctx, target)
-		if err != nil {
-			return 0, err
-		}
-		fmt.Println("***0 case", cnt)
-		return 0, nil
-	}
-	if target == 1 {
-		cnt, err := fsi.MemoCount(ctx, target)
-		if err != nil {
-			return 0, err
-		}
-		fmt.Println("***1 case", cnt)
-		return 1, nil
-	}
-
-	fp, err := fsi.store.FindLessEqual(ctx, target)
-	var n int
+	fp, err := fsi.store.FindLess(ctx, target)
+	n := 0
 	if err != nil {
 		return 0, err
 	}
 	if fp != nil {
+		// The highest memo found is equal to the target, so count the
+		// number of intermediate results in range in the db and return that.
 		if fp.Value == target {
 			cnt, err := fsi.MemoCount(ctx, target)
 			if err != nil {
 				return 0, err
 			}
-			fmt.Println("****alert: memcnt:", cnt, "returning:", fp.Num)
-			return fp.Num, nil
+			return cnt, nil
 		}
 		n = fp.Num
-	} else {
-		n = 0
 	}
 
+	// We don't have enough memos in the db yet, so create the missing ones
+	// and then count the memos stored.
 	for {
 		res, err := fsi.Fib(ctx, n+1)
 		if err != nil {
@@ -133,8 +124,7 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 			if err != nil {
 				return 0, err
 			}
-			fmt.Println("****alert: memcnt:", cnt, "returning:", n+1)
-			return n + 1, nil
+			return cnt, nil
 		}
 		n++
 	}

@@ -13,7 +13,7 @@ unit:
 	 go test ./... -v -count=1
 
 bench:
-	@echo "running benchmark tests (dockertest image load may take some time) ..."
+	@echo "running benchmark tests (db image load and execution may take literally a minute or two) ..."
 	go test ./... -run=Bench -bench=.
 
 integration:

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 
 	// Load Postgres driver
 	_ "github.com/lib/pq"
@@ -28,8 +29,8 @@ const (
 	findLess = `SELECT num, value FROM fibtab WHERE value <= $1 ORDER BY VALUE DESC LIMIT 1;`
 
 	// count the number of mempoized artifacts where the value is less than
-	// or equal to the target.
-	memoCount = `SELECT count(*) as count FROM fibtab WHERE value <= $1;`
+	// the target.
+	memoCount = `SELECT count(*) as count FROM fibtab WHERE value < $1;`
 
 	// store a memo (ignore a duplicate update)
 	store = `INSERT INTO fibtab (num, value) VALUES ($1, $2)
@@ -53,10 +54,11 @@ type PostgresStore struct {
 	findLessStmt *sqlx.Stmt
 	storeStmt    *sqlx.Stmt
 	memoStmt     *sqlx.Stmt
+	log          *zap.SugaredLogger
 }
 
 // NewPostgres return a new Postgres store
-func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
+func NewPostgres(ctx context.Context, cfg PostgresConfig, log *zap.SugaredLogger) (Store, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
@@ -69,11 +71,12 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 			time.Sleep(1 * time.Second)
 		}
 		if i == 10 {
+			log.Debugw("Establishing DB connection", "status", "reached max connection attempts")
 			fmt.Println("too many errors")
 			return nil, err
 		}
 	}
-	fmt.Println("****connected to db!")
+	log.Infow("DB connection", "status", "connected to DB")
 
 	// Create the table if it doesn't exist.
 	_, err = db.ExecContext(ctx, createTable)
@@ -108,6 +111,7 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (Store, error) {
 		findLessStmt: findLess,
 		storeStmt:    store,
 		memoStmt:     mcnt,
+		log:          log,
 	}
 	return ps, nil
 }
@@ -134,9 +138,9 @@ func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
 	return err
 }
 
-// FindLessEqual finds the highest n and value memoized value less
+// FindLess finds the highest n and value memoized value less
 // than or equal to the target
-func (ps *PostgresStore) FindLessEqual(ctx context.Context, target uint64) (*FibPair, error) {
+func (ps *PostgresStore) FindLess(ctx context.Context, target uint64) (*FibPair, error) {
 	var fp FibPair
 	row := ps.findLessStmt.QueryRowContext(ctx, target)
 	err := row.Scan(&fp.Num, &fp.Value)

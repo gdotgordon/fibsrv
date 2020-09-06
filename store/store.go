@@ -29,9 +29,9 @@ type Store interface {
 	// Memoize stores a fibonacci number/value pair.
 	Memoize(context.Context, int, uint64) error
 
-	// FindLessEqual finds the n and fib(n) pair whose memoized value
+	// FindLess finds the n and fib(n) pair whose memoized value
 	// is the highest one less than the target value.
-	FindLessEqual(context.Context, uint64) (*FibPair, error)
+	FindLess(context.Context, uint64) (*FibPair, error)
 
 	// MemoCount finds the number of memoized values whose value
 	// is less than or equal to a target value.

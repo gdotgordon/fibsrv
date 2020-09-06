@@ -76,6 +76,7 @@ func main() {
 			Password: postgresPassword,
 			DBName:   postgresDB,
 		},
+		log,
 	)
 	if err != nil {
 		fmt.Println("error opening store:", err)

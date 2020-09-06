@@ -32,9 +32,9 @@ func (ms *MapStore) Memoize(ctx context.Context, n int, val uint64) error {
 	return nil
 }
 
-// FindLessEqual finds the highest n and value memoized value less
+// FindLess finds the highest n and value memoized value less
 // than or equal to the target
-func (ms *MapStore) FindLessEqual(ctx context.Context, target uint64) (*FibPair, error) {
+func (ms *MapStore) FindLess(ctx context.Context, target uint64) (*FibPair, error) {
 	max := uint64(0)
 	n := 0
 	for k, v := range ms.tab {
@@ -51,8 +51,14 @@ func (ms *MapStore) FindLessEqual(ctx context.Context, target uint64) (*FibPair,
 
 // MemoCount returns the number of memoizations whose value is less than or
 // equal to the target.
-func (ms *MapStore) MemoCount(context.Context, uint64) (int, error) {
-	return len(ms.tab), nil
+func (ms *MapStore) MemoCount(ctx context.Context, target uint64) (int, error) {
+	cnt := 0
+	for _, v := range ms.tab {
+		if v < target {
+			cnt++
+		}
+	}
+	return cnt, nil
 }
 
 // Clear clears the map
