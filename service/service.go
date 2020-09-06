@@ -34,30 +34,34 @@ type FibImpl struct {
 	store store.Store
 }
 
+// Compile time interface implementation check.
+var _ FibService = (*FibImpl)(nil)
+
 // NewFib returns a new Fibonacci service
 func NewFib(store store.Store) (FibService, error) {
 	return &FibImpl{store: store}, nil
 }
 
 // Fib gets the Fibonacci value for a number, returns an error if one occurs.
+// This is the standard recursive algorithm that also memoizes every
+// fib(n) computation.  Thus, after a call to fib(n), we can expect
+// a database entry to exist for every value 0 to n.  Some may have been
+// prsnt from before, some not.
 func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 	val, ok, err := fsi.store.Memo(ctx, n)
 	if err != nil {
 		return 0, err
 	}
 	if ok {
-		//fmt.Println("hit:", n, val)
 		return val, nil
 	}
 	if n == 0 {
-		//fmt.Println("0 case")
 		if err = fsi.store.Memoize(ctx, 0, 0); err != nil {
 			return 0, err
 		}
 		return 0, nil
 	}
 	if n == 1 {
-		//fmt.Println("1 case")
 		if err = fsi.store.Memoize(ctx, 0, 0); err != nil {
 			return 0, err
 		}
@@ -66,6 +70,9 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 		}
 		return 1, nil
 	}
+
+	// This looks somewhat different than the standard fibonacci
+	// recursion due to having to check for errors.
 	f1, err := fsi.Fib(ctx, n-1)
 	if err != nil {
 		return 0, err
@@ -82,40 +89,24 @@ func (fsi *FibImpl) Fib(ctx context.Context, n int) (uint64, error) {
 }
 
 // FibLess finds the number of intermediate results such that their fib(n)
-// is less than the target value.  It starts with the highest intermediate
-// value in the database and then increments by 1 until it finds a value
-// greater than or equal to the target.  At that point it goes back and fetches
-// the number of memos less than the target value.
+// is less than the target value.  It basically keeps computing f(n) for
+// larger and larger n, and finally when it is large enough, it returns
+// the number of stored memos less than the target value.
 //
-// In other words, we need to create any missing memos to get to the point
-// that the repository has all the missing intermidate results.
+// Note, if the target is an exact fibonacci number, e.g. f(10)=34, then this will
+// return the number of *intermediate* memos, not incuding the memo for 34
+// itself, so 9 for 34.
 //
-// The logic depends on the fact that any memos populated to the db are
-// done correctly, i.e. the complete sequence is recorded.  This will
-// always be the case.
+// Also note there are more efficient ways to do this if all the consecutive memos
+// are stored, and our code does build a complete set of memos for each value computed.
+// However, due to errors or other changes in the database, it makes the code too
+// fragile to depend on this.
 func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
-	fp, err := fsi.store.FindLess(ctx, target)
-	n := 0
-	if err != nil {
-		return 0, err
-	}
-	if fp != nil {
-		// The highest memo found is equal to the target, so count the
-		// number of intermediate results in range in the db and return that.
-		if fp.Value == target {
-			cnt, err := fsi.MemoCount(ctx, target)
-			if err != nil {
-				return 0, err
-			}
-			return cnt, nil
-		}
-		n = fp.Num
-	}
 
-	// We don't have enough memos in the db yet, so create the missing ones
-	// and then count the memos stored.
-	for {
-		res, err := fsi.Fib(ctx, n+1)
+	// Keep computing fib(n) until we have a big enough value.  If
+	// the cache is well populated, this should perform well.
+	for n := 0; ; n++ {
+		res, err := fsi.Fib(ctx, n)
 		if err != nil {
 			return 0, err
 		}
@@ -126,12 +117,10 @@ func (fsi *FibImpl) FibLess(ctx context.Context, target uint64) (int, error) {
 			}
 			return cnt, nil
 		}
-		n++
 	}
 }
 
-// MemoCount counts the number of memoizations less than or equal to
-// the target.
+// MemoCount counts the number of memoizations less than the target.
 func (fsi *FibImpl) MemoCount(ctx context.Context, target uint64) (int, error) {
 	res, err := fsi.store.MemoCount(ctx, target)
 	if err != nil {

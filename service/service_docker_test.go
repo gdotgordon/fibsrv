@@ -107,6 +107,7 @@ func TestFibLessDB(t *testing.T) {
 		{target: 120, result: 12},
 		{target: 11, result: 7},
 		{target: 54, result: 10},
+		{target: 21, result: 8},
 	} {
 		res, err := svc.FibLess(ctx, v.target)
 		if err != nil {

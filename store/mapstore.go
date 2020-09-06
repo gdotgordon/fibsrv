@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+// Compile time interface implementation check.
+var _ Store = (*MapStore)(nil)
+
 // MapStore is a hash map implementation of the store
 type MapStore struct {
 	tab map[int]uint64
@@ -30,23 +33,6 @@ func (ms *MapStore) Memoize(ctx context.Context, n int, val uint64) error {
 	ms.tab[n] = val
 	ms.mu.Unlock()
 	return nil
-}
-
-// FindLess finds the highest n and value memoized value less
-// than or equal to the target
-func (ms *MapStore) FindLess(ctx context.Context, target uint64) (*FibPair, error) {
-	max := uint64(0)
-	n := 0
-	for k, v := range ms.tab {
-		if v > max && v <= target {
-			if v == target {
-				return &FibPair{k, v}, nil
-			}
-			max = v
-			n = k
-		}
-	}
-	return &FibPair{n, max}, nil
 }
 
 // MemoCount returns the number of memoizations whose value is less than or
