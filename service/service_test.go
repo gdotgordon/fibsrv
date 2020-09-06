@@ -7,6 +7,8 @@ import (
 	"github.com/gdotgordon/fibsrv/store"
 )
 
+// Testing fetching intermediate memo counts using a mock hash store.
+// This allows us to focus on the business logic of the service.
 func TestFibLess(t *testing.T) {
 	ctx := context.Background()
 	store := store.NewMap()
@@ -33,6 +35,8 @@ func TestFibLess(t *testing.T) {
 	}
 }
 
+// Testing computing fibonacci values using a mock hash store.
+// This allows us to focus on the business logic of the service.
 func TestFib(t *testing.T) {
 	ctx := context.Background()
 	store := store.NewMap()

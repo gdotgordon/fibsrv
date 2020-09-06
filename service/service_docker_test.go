@@ -29,6 +29,7 @@ var (
 	repo store.Store
 )
 
+// We use dockertest to set up a shared repo for the test.
 func TestMain(m *testing.M) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
@@ -83,6 +84,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// Tests finding the count of intermediate memos.
 func TestFibLessDB(t *testing.T) {
 	svc, err := NewFib(repo)
 	if err != nil {
@@ -119,6 +121,7 @@ func TestFibLessDB(t *testing.T) {
 	}
 }
 
+// Tests running the fbonacci function with various values.
 func TestFibDB(t *testing.T) {
 	svc, err := NewFib(repo)
 	if err != nil {
@@ -170,6 +173,8 @@ func TestFibDB(t *testing.T) {
 	}
 }
 
+// This benchmark calculates a range of Fibonacci numbers and clears the
+// database after each calculation.  We expect this to be slow.
 func BenchmarkFibonacciClearCache(b *testing.B) {
 	b.ReportAllocs()
 
@@ -206,6 +211,8 @@ func BenchmarkFibonacciClearCache(b *testing.B) {
 	}
 }
 
+// This benchmark calculates a range of Fibonacci numbers but does not
+// clear the database after each calculation.  We expect this to be faster.
 func BenchmarkFibonacciNoClearCache(b *testing.B) {
 	b.ReportAllocs()
 
@@ -234,6 +241,9 @@ func BenchmarkFibonacciNoClearCache(b *testing.B) {
 	}
 }
 
+// This benchmark calculates a range of Fibonacci numbers and uses no
+// caching and no database whatsover.  It turns out to be way faster
+// than the other two because database.
 func BenchmarkFibonacciNoCache(b *testing.B) {
 	b.ReportAllocs()
 

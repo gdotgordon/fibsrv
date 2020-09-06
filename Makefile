@@ -1,6 +1,6 @@
 # Commands to build/start and stop the container and run tests.
 
-testall: unit integration bench
+testall: service_test store_test integration_test bench_test
 
 serverup:
 	docker-compose up --build
@@ -8,16 +8,20 @@ serverup:
 serverdown:
 	docker-compose down --volumes --rmi all
 
-unit:
-	@echo "running unit tests (dockertest image load may take some time) ..."
-	 go test ./... -v -count=1
+service_test:
+	@echo "running unit tests in service (dockertest image load may take some time) ..."
+	 go test ./service -v -count=1
 
-bench:
+bench_test:
 	@echo "running benchmark tests (db image load and execution may take literally a minute or two) ..."
 	go test ./... -run=Bench -bench=.
 
-integration:
+integration_test:
 	@echo "running integration tests (invoking docker-compose first) ..."
 	docker-compose up --build -d
 	go test ./... -tags=integration -v -count=1
 	docker-compose down --volumes --rmi all
+
+store_test:
+	@echo "running store unit tests (dockertest image load may take some time) ..."
+	go test ./store -tags=store -v -count=1

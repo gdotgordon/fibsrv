@@ -13,20 +13,26 @@ The solution is implemented as a Rest-like server written in Go, which deploys c
 ### Test Cases
 The are three types of test cases: unit tests, benchmark tests and full server integration tests.  Some of the unit tests use *ory/dockertest* to populate a mock Postgres repository, as recommended in the assignment.  This can add a bit of startup time to the tests, due to network latency issues, etc.  They also seem to clean up well enough as long as you don't stop the tests artificially.  If port 8080 ends up being in use, then a tool like the Docker Dashboard can be used to remove the existing image.
 
+Note: I ran into complications trying to start `dockertest` in two different directories in the same `go test` invocation.  Separating the builds seemed to work.  It seems like a workaround, but reasonable in the interests of time.  As a result, running `go test ./...` will not run all the unit tests, as the store test was given a test tag.
+
+*It is recommended to use the make targets to run the tests, specifically `make testall` runs everything.*
+
 ### Running Everything From the Makefile
-There is a Makefile with targets to bring the app up and down, as well a set of tests or all the tests.  Each `make` target is invoked as `make <target`>, e.g. `make serverup`, `make bench`.  The list of make targets is:
+There is a Makefile with targets to bring the app up and down, as well a set of tests or all the tests.  Each `make` target is invoked as `make <target`>, e.g. `make serverup`, `make bench_test`.  The list of make targets is:
 
 * `serverup` - launches both the server program and Postgres containers.  This runs the output to a window (not in detached mode, so it is best to leave this running in its own window.
 
 * `serverdown` - takes down the containers and removes the Docker images.  If you start it again it will have to pull the images, but this is intentional, as someone reviewing the code isn't likely to run this over and over.
 
-* `unit` - runs the unit tests.  This does pull in docker images to mock the database.  There are some unit tests which do use a mock hash map-based store, but essentially the same tests are also done using the Postgres image pulled by `dockertest`.
+* `service_test` - runs the unit tests in the `service`.  This pulls in a docker image to mock the database.  There are some unit tests which do use a mock hash map-based store, but essentially the same tests are also done using the Postgres image pulled by `dockertest`.
 
-* `bench` - runs a set of benchmark tests.  The implications of the results of these tests will be discussed later on, but they are basically variations on how much the memo cache is depended on, and how that affects the results.
+* `store_test` - runs the unit tests in store.  This uses `dockertest` to pull in a docker image to mock the database.
 
-* `integration` - stands up the full server on docker, and connects to it using an HTTP client.  Again, not much new logic, but it is the full end-to-end test.
+* `bench_test` - runs a set of benchmark tests.  The implications of the results of these tests will be discussed later on, but they are basically variations on how much the memo cache is depended on, and how that affects the results.
 
-* testall - runs all three test types listed above
+* `integration_test` - stands up the full server on docker, and connects to it using an HTTP client.  Again, not much new logic, but it is the full end-to-end test.
+
+* `testall` - runs all four test types listed above
 
 ### Invoking endpoints
 The three endpoints may be invoked as follows:
@@ -45,8 +51,6 @@ There is a main function which basically launches the HTTP server and invoke the
 * `store` - there is a `Store` interface defined which satisfies the backend requirements of the service layer.  These are simple queries, such as storing a memoized value, trying to fetch a memoized value if it exists, and counting the number memos whose fibonacci value is less than a specified target.  There is a Postgres based store, as well as a hash-map based store (which was used to write and debug the service layer).
 
 The source code is well-commented, and specific details may be found in the code.
-
-Currently all of the tests are in the service layer, as this is the best place to execute all the logic.  Given more time, tests are needed in the storage lyaer.
 
 ### Performance
 The memoization helps for sure and keeps resource usage down.  Accessing the db add a lot of overhead as well.

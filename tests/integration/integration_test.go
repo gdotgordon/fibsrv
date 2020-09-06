@@ -23,6 +23,8 @@ var (
 	fibClient *http.Client
 )
 
+// This test is similar to the unit tests in service, but invokes everything
+// going through the live server via the REST API.
 func TestMain(m *testing.M) {
 	fibClient = http.DefaultClient
 
@@ -43,7 +45,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestFib(t *testing.T) {
+func TestFibInteg(t *testing.T) {
 	if err := invokeClear(); err != nil {
 		t.Fatal("error clearing database:", err)
 	}
@@ -86,7 +88,7 @@ func TestFib(t *testing.T) {
 
 }
 
-func TestFibLessDB(t *testing.T) {
+func TestFibLessInteg(t *testing.T) {
 	if err := invokeClear(); err != nil {
 		t.Fatal("error clearing database:", err)
 	}
