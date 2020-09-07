@@ -16,7 +16,7 @@ If port 8080 cannot be used please make the following modifications (otherwise i
 ## Introduction and Overview
 This code implements the Fibonacci service including the three required functions:
 1. get the value of Fib(n) using memoization and a DB backing store
-2. compute the number of *intermediate* terms (memoized results) for any given target value
+2. compute the number of intermediate terms (memoized results) for any given target value.  Important: the assignment asks for the number of *intermediate* terms, so if we ask for the value for 377, which is fib(14), we'll return 14 (memoized values 0-13), but not count the new memo for 14.  That's how I interpret the specification of "intermediate terms less than". 
 3. clear all the rows of the database
 
 ## Implementation
