@@ -6,7 +6,7 @@ Fibonacci number server
 2. make
 3. docker, docker-compose
 
-Port requirement: the test and server use port 8080 on localhost, so these must be available to run the `integration_test` target or to bring up the server (target `serverup`).
+Port requirement: the integration test and server use port 8080 on localhost, so these must be available to run the `integration_test` target or to bring up the server (target `serverup`).
 
 If port 8080 cannot be used please make the following modifications (otherwise ignore this step):
 1. Change the 8080:8080 to a port you want to use, i.e. 8333:8080 for port 8333
@@ -32,7 +32,7 @@ Note: I ran into complications trying to start `dockertest` in two different dir
 ### Running Everything From the Makefile
 There is a Makefile with targets to bring the app up and down, as well a set of tests or all the tests.  Each `make` target is invoked as `make <target`>, e.g. `make serverup`, `make bench_test`.  The list of make targets is:
 
-* `serverup` - launches both the server program and Postgres containers.  This runs the output to a window (not in detached mode, so it is best to leave this running in its own window).
+* `serverup` - launches both the server program and Postgres containers.  This runs the output to a window (not in detached mode, so it is best to leave this running in its own window).  You can then use a tool such as `Postman` or `curl` to exercise the APIs.
 
 * `serverdown` - takes down the containers and removes the Docker images.  If you start it again it will have to pull the images, but this is intentional, as someone reviewing the code isn't likely to run this over and over.
 
@@ -50,7 +50,7 @@ There is a Makefile with targets to bring the app up and down, as well a set of 
 The three endpoints may be invoked as follows:
 * Fib(n): HTTP GET endpoint with query parameter `n`, e.g.: http://localhost:8080/v1/fib?n=15 returns a JSON object with the result 610
 
-* FibLess(target): returns the number of intermediate memoized terms HTTP GET, query parameter `target`, e.g. http://localhost:8080/v1/fibless?target=120 returns a JSON objecvt with the result 12
+* FibLess(target): returns the number of intermediate memoized terms HTTP GET, query parameter `target`, e.g. http://localhost:8080/v1/fibless?target=120 returns a JSON object with the result 12
 
 * Clear database HTTP GET http://localhost:8080/v1/clear
 
