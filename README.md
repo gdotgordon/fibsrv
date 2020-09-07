@@ -14,9 +14,9 @@ If port 8080 cannot be used please make the following modifications (otherwise i
 
 
 ## Introduction and Overview
-This code implements the Fibonacci service including the two required functions:
+This code implements the Fibonacci service including the three required functions:
 1. get the value of Fib(n) using memoization and a DB backing store
-2. compute the number of *intermediate* terms for any given target value
+2. compute the number of *intermediate* terms (memoized results) for any given target value
 3. clear all the rows of the database
 
 ## Implementation
@@ -25,16 +25,18 @@ The solution is implemented as a Rest-like server written in Go, which deploys c
 ### Test Cases
 The are three types of test cases: unit tests, benchmark tests and full server integration tests.  Some of the unit tests use *ory/dockertest* to populate a mock Postgres repository, as recommended in the assignment.  This can add a bit of startup time to the tests, due to network latency issues, etc.  They also seem to clean up well enough as long as you don't stop the tests artificially.  If port 8080 ends up being in use, then a tool like the Docker Dashboard can be used to remove the existing image.
 
-Note: I ran into complications trying to start `dockertest` in two different directories in the same `go test` invocation.  Separating the builds seemed to work.  It seems like a workaround, but reasonable in the interests of time.  As a result, running `go test ./...` will not run all the unit tests, as the store test was given a test tag.
+Note: I ran into complications trying to start `dockertest` in two different directories in the same `go test` invocation.  Separating the builds seemed to work.  It seems like a workaround, but reasonable in the interests of time.  As a result, running `go test ./...` will not run the store unit tests.  Hence the store test was given a test tag of it's own, and can easily be run from the Makefile.
 
 *It is recommended to use the make targets to run the tests, specifically `make testall` runs everything.*
 
 ### Running Everything From the Makefile
 There is a Makefile with targets to bring the app up and down, as well a set of tests or all the tests.  Each `make` target is invoked as `make <target`>, e.g. `make serverup`, `make bench_test`.  The list of make targets is:
 
-* `serverup` - launches both the server program and Postgres containers.  This runs the output to a window (not in detached mode, so it is best to leave this running in its own window.
+* `serverup` - launches both the server program and Postgres containers.  This runs the output to a window (not in detached mode, so it is best to leave this running in its own window).
 
 * `serverdown` - takes down the containers and removes the Docker images.  If you start it again it will have to pull the images, but this is intentional, as someone reviewing the code isn't likely to run this over and over.
+
+* `testall` - runs all four test types listed below at once.  This is the recommend way to quickly run all the tests.
 
 * `service_test` - runs the unit tests in the `service`.  This pulls in a docker image to mock the database.  There are some unit tests which do use a mock hash map-based store, but essentially the same tests are also done using the Postgres image pulled by `dockertest`.
 
@@ -44,13 +46,11 @@ There is a Makefile with targets to bring the app up and down, as well a set of 
 
 * `integration_test` - stands up the full server on docker, and connects to it using an HTTP client.  Again, not much new logic, but it is the full end-to-end test.
 
-* `testall` - runs all four test types listed above
-
 ### Invoking endpoints
 The three endpoints may be invoked as follows:
-* Fib(n): HTTP GET endpoint with query parameter `n`, e.g.: http://localhost:8080/v1/fib?n=15
+* Fib(n): HTTP GET endpoint with query parameter `n`, e.g.: http://localhost:8080/v1/fib?n=15 returns a JSON object with the result 610
 
-* FibLess(target): returns the number of intermediate memoized terms HTTP GET, query parameter `target`, e.g. http://localhost:8080/v1/fibless?target=120
+* FibLess(target): returns the number of intermediate memoized terms HTTP GET, query parameter `target`, e.g. http://localhost:8080/v1/fibless?target=120 returns a JSON objecvt with the result 12
 
 * Clear database HTTP GET http://localhost:8080/v1/clear
 
