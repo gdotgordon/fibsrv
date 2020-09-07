@@ -21,7 +21,6 @@ import (
 const (
 	fibURL     = "/v1/fib"     // get fib(n)
 	fibLessURL = "/v1/fibless" // get count(memos) for fib() < n
-	memoCntURL = "/v1/memocnt" // count actual memos where value <= n
 	clearURL   = "/v1/clear"   // clear the DB table
 )
 
@@ -37,18 +36,17 @@ type ResultResponse struct {
 
 // API is the item that dispatches to the endpoint implementations
 type apiImpl struct {
-	service service.FibService
+	service *service.FibService
 	log     *zap.SugaredLogger
 }
 
 // Init sets up the endpoint processing.  There is nothing returned, other
 // than potntial errors, because the endpoint handling is configured in
 // the passed-in muxer.
-func Init(ctx context.Context, r *mux.Router, service service.FibService, log *zap.SugaredLogger) error {
+func Init(ctx context.Context, r *mux.Router, service *service.FibService, log *zap.SugaredLogger) error {
 	ap := apiImpl{service: service, log: log}
 	r.HandleFunc(fibURL, ap.fib).Queries("n", "{n:[0-9]+}").Methods(http.MethodGet)
 	r.HandleFunc(fibLessURL, ap.fibLess).Queries("target", "{target:[0-9]+}").Methods(http.MethodGet)
-	r.HandleFunc(memoCntURL, ap.memocnt).Queries("target", "{target:[0-9]+}").Methods(http.MethodGet)
 	r.HandleFunc(clearURL, ap.clear).Methods(http.MethodGet)
 
 	var wrapContext = func(next http.Handler) http.Handler {
@@ -107,30 +105,6 @@ func (a apiImpl) fibLess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := a.service.FibLess(r.Context(), uint64(target))
-	if err != nil {
-		a.writeErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	b, _ := json.MarshalIndent(ResultResponse{uint64(resp)}, "", "  ")
-	w.Write(b)
-}
-
-// Count number of currently stored memoized items less than target
-func (a apiImpl) memocnt(w http.ResponseWriter, r *http.Request) {
-	if r.Body != nil {
-		ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-	}
-	ttxt := r.URL.Query().Get("target")
-	target, err := strconv.Atoi(ttxt)
-	if err != nil || target < 0 {
-		a.writeErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-	resp, err := a.service.MemoCount(r.Context(), uint64(target))
 	if err != nil {
 		a.writeErrorResponse(w, http.StatusInternalServerError, err)
 		return

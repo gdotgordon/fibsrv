@@ -89,7 +89,12 @@ func TestMain(m *testing.M) {
 // TODO: add more test cases, but this is the basic idea
 // to utilize all the APIs.
 func TestStore(t *testing.T) {
+
 	ctx := context.Background()
+	if err := repo.Clear(ctx); err != nil {
+		t.Fatalf("error clearing store: %v", err)
+	}
+
 	for i, v := range []struct {
 		pairs       []FibPair
 		missingKeys []int
@@ -99,12 +104,21 @@ func TestStore(t *testing.T) {
 			missingKeys: []int{5, 7},
 		},
 	} {
+		// Memoize the values.
 		for _, p := range v.pairs {
 			if err := repo.Memoize(ctx, p.Num, p.Value); err != nil {
 				t.Fatalf("%d: error memoizing %v: %v", i, p, err)
 			}
 		}
 
+		// Re-Memoizing the values should be a harmless no-op
+		for _, p := range v.pairs {
+			if err := repo.Memoize(ctx, p.Num, p.Value); err != nil {
+				t.Fatalf("%d: error memoizing %v: %v", i, p, err)
+			}
+		}
+
+		// Get the memos we srtored back.
 		var lastVal uint64
 		for i, p := range v.pairs {
 			val, ok, err := repo.Memo(ctx, p.Num)
@@ -122,6 +136,7 @@ func TestStore(t *testing.T) {
 			}
 		}
 
+		// Make sure we handle missng memos ok.
 		for _, m := range v.missingKeys {
 			_, ok, err := repo.Memo(ctx, m)
 			if err != nil {
@@ -132,6 +147,7 @@ func TestStore(t *testing.T) {
 			}
 		}
 
+		// Verify the memo count.
 		cnt, err := repo.MemoCount(ctx, lastVal)
 		if err != nil {
 			t.Fatalf("%d: error getting memo count: %v", i, err)
@@ -144,6 +160,7 @@ func TestStore(t *testing.T) {
 			t.Fatalf("%d: error clearing store: %v", i, err)
 		}
 
+		// And again after clearing the repo.
 		cnt, err = repo.MemoCount(ctx, lastVal)
 		if err != nil {
 			t.Fatalf("%d: error getting memo count: %v", i, err)

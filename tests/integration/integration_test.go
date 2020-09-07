@@ -9,23 +9,34 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/gdotgordon/fibsrv/api"
 )
 
-const (
-	fibAddr = "http://localhost:8080/v1/"
-)
-
 var (
+	fibAddr   string
 	fibClient *http.Client
 )
 
 // This test is similar to the unit tests in service, but invokes everything
 // going through the live server via the REST API.
 func TestMain(m *testing.M) {
+	var err error
+
+	port := 8080
+	fa := os.Getenv("FIB_PORT")
+	if fa != "" {
+		port, err = strconv.Atoi(fa)
+		if err != nil {
+			fmt.Println("bad port value for FIB_PORT:", fa)
+			os.Exit(1)
+		}
+	}
+	fibAddr = fmt.Sprintf("http://localhost:%d/v1/", port)
+
 	fibClient = http.DefaultClient
 
 	// Make sure we can reach the server.

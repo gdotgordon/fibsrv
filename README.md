@@ -1,6 +1,18 @@
 # fibsrv
 Fibonacci number server
 
+## Requirements
+1. Go toolchain, preferably Go 15.x
+2. make
+3. docker, docker-compose
+
+Port requirement: the test and server use port 8080 on localhost, so these must be available to run the `integration_test` target or to bring up the server (target `serverup`).
+
+If port 8080 cannot be used please make the following modifications (otherwise ignore this step):
+1. Change the 8080:8080 to a port you want to use, i.e. 8333:8080 for port 8333
+2. run `export FIB_PORT=8333` in the shell you will run the test from so the integration test knows the port number
+
+
 ## Introduction and Overview
 This code implements the Fibonacci service including the two required functions:
 1. get the value of Fib(n) using memoization and a DB backing store
@@ -63,8 +75,8 @@ To measure performance, I wrote a benchmark test with three variants:
 Some observations for the above scenario:
 
 ```
-BenchmarkFibonacciNoClearCache-12    	      40	  29999606 ns/op	   16084 B/op	     438 allocs/op
-BenchmarkFibonacciClearCache-12      	       3	 372842304 ns/op	  139816 B/op	    3963 allocs/op
-BenchmarkFibonacciNoCache-12         	   18772	     66555 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFibonacciClearCache-12      	       4	 311355872 ns/op	  131984 B/op	    3751 allocs/op
+BenchmarkFibonacciNoClearCache-12    	      96	  12373715 ns/op	    8013 B/op	     219 allocs/op
+BenchmarkFibonacciNoCache-12         	   18470	     60414 ns/op	       0 B/op	       0 allocs/op
 ```
 Not surprisingly, the speed and memory usage are significantly improved using the cache.  Using the mock cache blows the other two out of the water, showing us that using the database for memo storage (also not surprisingly) dwarfs the raw compute time.  That said, the use of the database no doubt helps alleviate the use of the stack for recursion, especially as more and more values get added to the cache.

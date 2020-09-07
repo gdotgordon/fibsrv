@@ -84,6 +84,53 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// Tests running the fbonacci function with various values.
+func TestFibDB(t *testing.T) {
+	svc, err := NewFib(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = svc.Clear(context.Background())
+	if err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	ctx := context.Background()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, v := range []struct {
+		n      int
+		result uint64
+		expMem int
+	}{
+		{n: 0, result: 0, expMem: 0},
+		{n: 1, result: 1, expMem: 1},
+		{n: 2, result: 1, expMem: 1},
+		{n: 3, result: 2, expMem: 3},
+		{n: 5, result: 5, expMem: 5},
+		{n: 10, result: 55, expMem: 10},
+		{n: 15, result: 610, expMem: 15},
+		{n: 20, result: 6765, expMem: 20},
+		{n: 8, result: 21, expMem: 8},
+	} {
+		res, err := svc.Fib(ctx, v.n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res != v.result {
+			t.Fatalf("%d: fib(%d), expected %d, got %d", i, v.result, v.n, res)
+		}
+
+		cnt, err := svc.store.MemoCount(ctx, v.result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cnt != v.expMem {
+			t.Fatalf("%d: expected %d memos, got %d", i, v.expMem, cnt)
+		}
+	}
+}
+
 // Tests finding the count of intermediate memos.
 func TestFibLessDB(t *testing.T) {
 	svc, err := NewFib(repo)
@@ -105,6 +152,7 @@ func TestFibLessDB(t *testing.T) {
 		{target: 0, result: 0},
 		{target: 1, result: 1},
 		{target: 2, result: 3},
+		{target: 3, result: 4},
 		{target: 11, result: 7},
 		{target: 120, result: 12},
 		{target: 11, result: 7},
@@ -117,155 +165,6 @@ func TestFibLessDB(t *testing.T) {
 		}
 		if res != v.result {
 			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.target, v.result, res)
-		}
-	}
-}
-
-// Tests running the fbonacci function with various values.
-func TestFibDB(t *testing.T) {
-	svc, err := NewFib(repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = svc.Clear(context.Background())
-	if err != nil {
-		t.Fatalf("clear: %v", err)
-	}
-	ctx := context.Background()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, v := range []struct {
-		n      int
-		result uint64
-	}{
-		{n: 0, result: 0},
-		{n: 1, result: 1},
-		{n: 2, result: 1},
-		{n: 5, result: 5},
-		{n: 10, result: 55},
-		{n: 15, result: 610},
-		{n: 20, result: 6765},
-		{n: 8, result: 21},
-	} {
-		res, err := svc.Fib(ctx, v.n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res != v.result {
-			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.result, v.n, res)
-		}
-
-		cnt, err := svc.MemoCount(ctx, v.result)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if i == 2 {
-			// The sequence starts: 0, 1, 1.  Therefore there is only one
-			// memo less than 2 even though there are two previous memos.
-			// So add one here for this special case.
-			cnt++
-		}
-		if cnt != v.n {
-			t.Fatalf("%d: expected %d memos, got %d", i, v.n, cnt)
-		}
-	}
-}
-
-// This benchmark calculates a range of Fibonacci numbers and clears the
-// database after each calculation.  We expect this to be slow.
-func BenchmarkFibonacciClearCache(b *testing.B) {
-	b.ReportAllocs()
-
-	ctx := context.Background()
-	svc, err := NewFib(repo)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	cnt := 15
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < cnt; i++ {
-			err = svc.Clear(context.Background())
-			if err != nil {
-				b.Fatalf("clear: %v", err)
-			}
-			f, err := svc.Fib(ctx, i)
-			if err != nil {
-				b.Fatalf("fib(%d): %v", i, err)
-			}
-			num, err := svc.MemoCount(ctx, f)
-			if err != nil {
-				b.Fatalf("les(%d): %v", num, err)
-			}
-
-			// Quirk of repeated 1's in Fibonacci sequence.
-			if i == 2 {
-				num++
-			}
-			if num != i {
-				b.Fatalf("expcted %d memos, got %d, %d result", i, num, f)
-			}
-		}
-	}
-}
-
-// This benchmark calculates a range of Fibonacci numbers but does not
-// clear the database after each calculation.  We expect this to be faster.
-func BenchmarkFibonacciNoClearCache(b *testing.B) {
-	b.ReportAllocs()
-
-	ctx := context.Background()
-	svc, err := NewFib(repo)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	err = svc.Clear(context.Background())
-	if err != nil {
-		b.Fatalf("clear: %v", err)
-	}
-	cnt := 15
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < cnt; i++ {
-			f, err := svc.Fib(ctx, i)
-			if err != nil {
-				b.Fatalf("fib(%d): %v", i, err)
-			}
-			num, err := svc.MemoCount(ctx, f)
-			if err != nil {
-				b.Fatalf("les(%d): %v", num, err)
-			}
-		}
-	}
-}
-
-// This benchmark calculates a range of Fibonacci numbers and uses no
-// caching and no database whatsover.  It turns out to be way faster
-// than the other two because database.
-func BenchmarkFibonacciNoCache(b *testing.B) {
-	b.ReportAllocs()
-
-	ctx := context.Background()
-	svc, err := NewFib(&NeverStore{vals: make(map[int]uint64)})
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	err = svc.Clear(context.Background())
-	if err != nil {
-		b.Fatalf("clear: %v", err)
-	}
-	cnt := 15
-	for n := 0; n < b.N; n++ {
-		for i := 0; i < cnt; i++ {
-			f, err := svc.Fib(ctx, i)
-			if err != nil {
-				b.Fatalf("fib(%d): %v", i, err)
-			}
-			// No memos being stored, ignore.
-			svc.MemoCount(ctx, f)
 		}
 	}
 }

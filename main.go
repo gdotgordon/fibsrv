@@ -81,9 +81,9 @@ func main() {
 	)
 	if err != nil {
 		fmt.Println("error opening store:", err)
-		//os.Exit(1)
+		os.Exit(1)
 	}
-	//ms := store.NewMap()
+
 	svc, err := service.NewFib(dataStore)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error creating service:", err)

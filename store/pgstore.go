@@ -130,7 +130,6 @@ func (ps *PostgresStore) Memo(ctx context.Context, n int) (uint64, bool, error) 
 
 // Memoize stores a memoized value
 func (ps *PostgresStore) Memoize(ctx context.Context, n int, val uint64) error {
-	//fmt.Println("memoize", n, val)
 	_, err := ps.storeStmt.ExecContext(ctx, n, val)
 	return err
 }

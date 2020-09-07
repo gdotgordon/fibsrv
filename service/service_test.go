@@ -7,34 +7,6 @@ import (
 	"github.com/gdotgordon/fibsrv/store"
 )
 
-// Testing fetching intermediate memo counts using a mock hash store.
-// This allows us to focus on the business logic of the service.
-func TestFibLess(t *testing.T) {
-	ctx := context.Background()
-	store := store.NewMap()
-	svc, err := NewFib(store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, v := range []struct {
-		target uint64
-		result int
-	}{
-		{target: 2, result: 3},
-		{target: 11, result: 7},
-		{target: 1, result: 1},
-		{target: 120, result: 12},
-	} {
-		res, err := svc.FibLess(ctx, v.target)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res != v.result {
-			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.target, v.result, res)
-		}
-	}
-}
-
 // Testing computing fibonacci values using a mock hash store.
 // This allows us to focus on the business logic of the service.
 func TestFib(t *testing.T) {
@@ -62,10 +34,10 @@ func TestFib(t *testing.T) {
 			t.Fatal(err)
 		}
 		if res != v.result {
-			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.n, v.result, res)
+			t.Fatalf("%d: fib(%d), expected %d, got %d", i, v.n, v.result, res)
 		}
 
-		cnt, err := svc.MemoCount(ctx, v.result)
+		cnt, err := svc.store.MemoCount(ctx, v.result)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,6 +50,34 @@ func TestFib(t *testing.T) {
 		}
 		if cnt != v.n {
 			t.Fatalf("%d: expected %d memos, got %d", i, v.n, cnt)
+		}
+	}
+}
+
+// Testing fetching intermediate memo counts using a mock hash store.
+// This allows us to focus on the business logic of the service.
+func TestFibLess(t *testing.T) {
+	ctx := context.Background()
+	store := store.NewMap()
+	svc, err := NewFib(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, v := range []struct {
+		target uint64
+		result int
+	}{
+		{target: 2, result: 3},
+		{target: 11, result: 7},
+		{target: 1, result: 1},
+		{target: 120, result: 12},
+	} {
+		res, err := svc.FibLess(ctx, v.target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res != v.result {
+			t.Fatalf("%d: less(%d), expected %d, got %d", i, v.target, v.result, res)
 		}
 	}
 }
