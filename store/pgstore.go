@@ -34,7 +34,7 @@ const (
 	// the target.
 	memoCount = `SELECT count(*) as count FROM fibtab WHERE value < $1;`
 
-	// store a memo (ignore a duplicate update)
+	// store a memo (ignore a duplicate update, say on multiple concurrent clients)
 	store = `INSERT INTO fibtab (num, value) VALUES ($1, $2)
 	    ON CONFLICT (num) DO NOTHING;`
 )

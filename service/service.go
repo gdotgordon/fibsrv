@@ -47,9 +47,6 @@ func (fs *FibService) Fib(ctx context.Context, n int) (uint64, error) {
 		return 0, nil
 	}
 	if n == 1 {
-		if err = fs.store.Memoize(ctx, 0, 0); err != nil {
-			return 0, err
-		}
 		if err = fs.store.Memoize(ctx, 1, 1); err != nil {
 			return 0, err
 		}
